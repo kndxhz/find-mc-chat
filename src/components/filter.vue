@@ -6,6 +6,8 @@
   import 'element-plus/es/components/date-picker/style/css'
   import 'element-plus/es/components/button/style/css'
   import log from './log.vue'
+  import { te } from 'element-plus/es/locales.mjs'
+  import zhCn from 'element-plus/lib/locale/lang/zh-cn';
   const state = ref('')
   const suggestions = [
     { value: 'Java' },
@@ -34,6 +36,87 @@
 
   const filterInput = ref('')
   const shortcuts = [
+    {
+      text:'最近一分钟',
+      value: () => {
+        const end = new Date()
+        const start = new Date()
+        start.setMinutes(start.getMinutes() - 1)
+        return [start, end]
+      },
+    },
+    {
+      text:'最近三分钟',
+      value: () => {
+        const end = new Date()
+        const start = new Date()
+        start.setMinutes(start.getMinutes() - 3)
+        return [start, end]
+      },
+    },
+    {
+      text:'最近五分钟',
+      value: () => {
+        const end = new Date()
+        const start = new Date()
+        start.setMinutes(start.getMinutes() - 5)
+        return [start, end]
+      },
+    },
+    {
+      text: '最近一刻钟',
+      value: () => {
+        const end = new Date()
+        const start = new Date()
+        start.setMinutes(start.getMinutes() - 15)
+        return [start, end]
+      },
+    },
+    {
+      text: '最近半小时',
+      value: () => {
+        const end = new Date()
+        const start = new Date()
+        start.setMinutes(start.getMinutes() - 30)
+        return [start, end]
+      },
+    },
+    {
+      text: '最近一小时',
+      value: () => {
+        const end = new Date()
+        const start = new Date()
+        start.setHours(start.getHours() - 1)
+        return [start, end]
+      },
+    },
+    {
+      text: '最近三小时',
+      value: () => {
+        const end = new Date()
+        const start = new Date()
+        start.setHours(start.getHours() - 2)
+        return [start, end]
+      },
+    },
+    {
+      text: '最近六小时',
+      value: () => {
+        const end = new Date()
+        const start = new Date()
+        start.setHours(start.getHours() - 6)
+        return [start, end]
+      },
+    },
+    {
+      text: '最近半天',
+      value: () => {
+        const end = new Date()
+        const start = new Date()
+        start.setHours(start.getHours() - 12)
+        return [start, end]
+      },
+    },
     {
       text: '今天',
       value: () => {
@@ -92,6 +175,15 @@
         return [start, end]
       },
     },
+    {
+      text: '最近一年',
+      value: () => {
+        const end = new Date()
+        const start = new Date()
+        start.setFullYear(start.getFullYear() - 1)
+        return [start, end]
+      },
+    },
   ]
   watch(filterInput, (newValue) => {
     console.log('筛选内容改变:', newValue)
@@ -118,21 +210,22 @@
       v-model="state"
       :fetch-suggestions="querySearch"
       :trigger-on-focus="false"
-      placeholder="请输入ID"
+      placeholder="请输入ID（空则全部查询）"
       @select="handleSelect"
+      clearable
     />
     <el-input
       class="filter-input"
       v-model="filterInput"
-      placeholder="筛选内容(支持正则)"
+      placeholder="筛选内容(支持正则，空则全部查询)"
       clearable
     />
     <el-date-picker
       class="filter-date"
       v-model="filterdate"
       type="datetimerange"
-      start-placeholder="开始日期"
-      end-placeholder="结束日期"
+      start-placeholder="开始日期（空则全部查询）"
+      end-placeholder="结束日期（空则全部查询）"
       :default-time="defaultTime1"
       :shortcuts="shortcuts"
     />

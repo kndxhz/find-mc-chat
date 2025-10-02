@@ -1,8 +1,9 @@
 <script setup lang="ts">
-//import { ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox, ElConfigProvider } from 'element-plus';
+import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import Main from './components/filter.vue';
 import 'element-plus/es/components/message-box/style/css';
+
 (async () => {
   const seenMessageBox = await cookieStore.get('seenMessageBox');
   if (seenMessageBox?.value !== 'true') {
@@ -14,33 +15,20 @@ import 'element-plus/es/components/message-box/style/css';
         dangerouslyUseHTMLString: true
       }
     );
-  } else {
-    console.log("已确认过提示");
+    cookieStore.set('seenMessageBox', 'true');
   }
-  cookieStore.set('seenMessageBox', 'true');
 })();
 </script>
 
 <template>
-  <div class="app">
-    <Main />
-  </div>
+  <el-config-provider :locale="zhCn">
+    <div class="app">
+      <Main />
+    </div>
+  </el-config-provider>
 </template>
 
-
-
-
 <style lang="css">
-.app {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-  box-sizing: border-box;
-  background: #fafafa;
-  overflow: hidden;
-}
-
 * {
   margin: 0;
   padding: 0;
@@ -49,5 +37,15 @@ import 'element-plus/es/components/message-box/style/css';
 
 html, body {
   height: 100%;
+}
+
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  box-sizing: border-box;
+  background: #fafafa;
+  overflow: hidden;
 }
 </style>
