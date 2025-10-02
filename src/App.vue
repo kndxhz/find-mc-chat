@@ -1,8 +1,22 @@
 <script setup lang="ts">
-import { ElMessage, ElMessageBox, ElConfigProvider } from 'element-plus';
+import { ElMessageBox, ElConfigProvider } from 'element-plus';
 import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import Main from './components/filter.vue';
 import 'element-plus/es/components/message-box/style/css';
+
+// 创建一个简单的 cookie 工具
+const cookieStore = {
+  async get(name: string) {
+    const value = document.cookie
+      .split('; ')
+      .find(row => row.startsWith(name + '='))
+      ?.split('=')[1];
+    return value ? { value } : undefined;
+  },
+  set(name: string, value: string) {
+    document.cookie = `${name}=${value}; path=/; max-age=31536000`;
+  }
+};
 
 (async () => {
   const seenMessageBox = await cookieStore.get('seenMessageBox');

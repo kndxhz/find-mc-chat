@@ -6,8 +6,6 @@
   import 'element-plus/es/components/date-picker/style/css'
   import 'element-plus/es/components/button/style/css'
   import log from './log.vue'
-  import { te } from 'element-plus/es/locales.mjs'
-  import zhCn from 'element-plus/lib/locale/lang/zh-cn';
   const state = ref('')
   const suggestions = [
     { value: 'Java' },
