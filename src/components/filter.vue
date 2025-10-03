@@ -197,9 +197,13 @@
   watch(state, (newValue) => {
     console.log('ID改变:', newValue)
   })
-  function onQuery() {
+  function on_query() {
     console.log('查询按钮点击')
   }
+
+  // function get_id() {
+  //   return state.value
+  // }
 </script>
 <template>
   <div class="filter">
@@ -229,7 +233,7 @@
     />
     <el-button
       class="query-button"
-      @click="onQuery">查询</el-button>
+      @click="on_query">查询</el-button>
 
   </div>
   <div class="log-container">
