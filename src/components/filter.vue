@@ -1,31 +1,63 @@
 <script setup lang="ts">
-  import { ref, watch } from 'vue'
+  import { ref } from 'vue'
   import { ElAutocomplete, ElInput, ElButton, ElDatePicker } from 'element-plus'
   import 'element-plus/es/components/autocomplete/style/css'
   import 'element-plus/es/components/input/style/css'
   import 'element-plus/es/components/date-picker/style/css'
   import 'element-plus/es/components/button/style/css'
-  import log from './log.vue'
+  import Log from './log.vue'
+  import {get_id, get_data} from '../api/chat.js'
+  
+  // 定义API响应类型
+  interface GetIdResponse {
+    ids: string[]
+    status: string
+  }
+  
+  interface ChatMessage {
+    username: string
+    user_alias: string
+    message: string
+    attribute: string
+    send_time: number
+    players: string
+    tps: number
+    tps_1: number
+    tps_5: number
+    tps_15: number
+  }
+  
+  interface GetDataResponse {
+    chats: ChatMessage[]
+    status: string
+  }
+  
   const state = ref('')
-  const suggestions = [
-    { value: 'Java' },
-    { value: 'JavaScript' },
-    { value: 'Python' },
-    { value: 'C' },
-    { value: 'C++' },
-    { value: 'C#' },
-    { value: 'Go' },
-    { value: 'Rust' },
-    { value: 'Ruby' },
-    { value: 'PHP' },
-    { value: 'Swift' },
-    { value: 'Kotlin' },
-    { value: 'TypeScript' },
-    { value: 'Dart' },
-    { value: 'Scala' },
-    { value: 'Perl' }]
+  const suggestions = ref<{ value: string }[]>([])
+  
+  // 初始化获取ID列表
+  const initSuggestions = async () => {
+    try {
+      const response = await get_id() as unknown as GetIdResponse
+      console.log('API返回数据:', response)
+      if (response.status === 'ok' && Array.isArray(response.ids)) {
+        suggestions.value = response.ids.map((id: string) => ({ value: id }))
+        console.log('ID列表加载成功:', suggestions.value)
+      } else {
+        console.error('API返回数据格式不正确:', response)
+      }
+    } catch (error) {
+      console.error('获取ID列表失败:', error)
+    }
+  }
+  
+  // 组件加载时初始化
+  initSuggestions()
+  
   const querySearch = (queryString: string, cb: (arg0: { value: string }[]) => void) => {
-    const results = queryString ? suggestions.filter(s => s.value.toLowerCase().includes(queryString.toLowerCase())) : suggestions
+    const results = queryString 
+      ? suggestions.value.filter(s => s.value.toLowerCase().includes(queryString.toLowerCase())) 
+      : suggestions.value
     cb(results)
   }
   const handleSelect = (item: Record<string, any>) => {
@@ -183,27 +215,70 @@
       },
     },
   ]
-  watch(filterInput, (newValue) => {
-    console.log('筛选内容改变:', newValue)
-  })
   const filterdate = ref<[Date, Date] | []>([])
 
   const defaultTime1 = new Date(2000, 1, 1, 12, 0, 0) // '12:00:00'
-
-  watch(filterdate, (newValue) => {
-    console.log('日期范围改变:', newValue)
-  })
-
-  watch(state, (newValue) => {
-    console.log('ID改变:', newValue)
-  })
-  function on_query() {
-    console.log('查询按钮点击')
+  
+  // log组件引用 - 定义组件实例类型
+  interface LogComponentInstance {
+    addMessage: (messageData: any) => void
+    clearMessages: () => void
+    setMessages: (messageList: any[]) => void
+    messages: any
   }
+  
+  const logRef = ref<LogComponentInstance>()
+  const isLoading = ref(false)
+  
+  // 查询按钮点击处理
+  async function on_query() {
+    try {
+      isLoading.value = true
+      
+      // 构建查询参数
+      const params: Record<string, string> = {
+        id: state.value || '',
+        filter: filterInput.value || '',
+        start_date: '',
+        end_date: ''
+      }
+      
+      // 处理时间范围
+      if (filterdate.value && filterdate.value.length === 2) {
+        // 转换为秒级时间戳
+        params.start_date = Math.floor(filterdate.value[0].getTime() / 1000).toString()
+        params.end_date = Math.floor(filterdate.value[1].getTime() / 1000).toString()
+      }
+      
+      console.log('查询参数:', params)
+      
+      // 调用API
+      const response = await get_data(params) as unknown as GetDataResponse
+      console.log('查询结果:', response)
+      
+      if (response.status === 'ok' && Array.isArray(response.chats)) {
+        // 更新log组件的数据
+        if (logRef.value && logRef.value.setMessages) {
+          logRef.value.setMessages(response.chats)
+          console.log(`成功加载 ${response.chats.length} 条聊天记录`)
+        } else {
+          console.error('Log组件引用未就绪或方法不存在')
+        }
+      } else {
+        console.error('查询返回数据格式不正确:', response)
+      }
+    } catch (error) {
+      console.error('查询失败:', error)
+    } finally {
+      isLoading.value = false
+    }
+  }
+  // 页面加载完成后自动执行查询
+  import { onMounted } from 'vue'
 
-  // function get_id() {
-  //   return state.value
-  // }
+  onMounted(() => {
+    on_query()
+  })
 </script>
 <template>
   <div class="filter">
@@ -233,11 +308,13 @@
     />
     <el-button
       class="query-button"
-      @click="on_query">查询</el-button>
+      @click="on_query"
+      :loading="isLoading"
+      type="primary">查询</el-button>
 
   </div>
   <div class="log-container">
-    <log />
+    <Log ref="logRef" />
   </div>
 </template>
 

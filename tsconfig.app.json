@@ -5,6 +5,10 @@
     "types": ["vite/client"],
     "allowJs": true,
     "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
 
     /* Linting */
     "strict": true,
