@@ -1,38 +1,53 @@
 <template>
   <div class="log-container">
-    <div class="log-cards">
-      <div
-        v-for="(message, index) in parsedMessages"
-        :key="index"
-        class="log-card"
-        @mouseenter="handleMessageHover(message, index, $event)"
-        @mousemove="handleMouseMove(message, index, $event)"
-        @mouseleave="handleMessageLeave(message, index, $event)"
+    <div 
+      class="log-cards" 
+      ref="scrollContainer"
+      @scroll="handleScroll"
+    >
+      <!-- 虚拟滚动容器 -->
+      <div 
+        class="log-cards-list" 
+        :style="{ 
+          paddingTop: paddingTop + 'px',
+          paddingBottom: paddingBottom + 'px',
+          minHeight: totalHeight + 'px'
+        }"
       >
-        <div class="log-card__main">
-          <div class="log-card__left">
-            <div class="log-card__header">
-              <span class="log-card__username">{{ message.username }}</span>
-              <span v-if="message.user_alias" class="log-card__alias">
-                {{ message.user_alias }}
-              </span>
-              <span class="log-card__time">{{ message.formatted_time }}</span>
-            </div>
-            <div class="log-card__content">
-              <p class="log-card__message">{{ message.message }}</p>
-            </div>
-          </div>
-          <div class="log-card__right">
-            <div class="log-card__stats">
-              <div class="stat-item">
-                <span class="stat-icon">👥</span>
-                <span class="stat-value">{{ getPlayerCount(message.players) }}</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label">TPS</span>
-                <span class="stat-value" :class="getTpsClass(message.tps)">
-                  {{ message.tps ? message.tps.toFixed(1) : '--' }}
+        <div
+          v-for="(message, index) in visibleMessages"
+          :key="message.actualIndex"
+          class="log-card"
+          :style="{ marginBottom: '12px' }"
+          @mouseenter="handleMessageHover(message, message.actualIndex, $event)"
+          @mousemove="handleMouseMove(message, message.actualIndex, $event)"
+          @mouseleave="handleMessageLeave(message, message.actualIndex, $event)"
+        >
+          <div class="log-card__main">
+            <div class="log-card__left">
+              <div class="log-card__header">
+                <span class="log-card__username">{{ message.username }}</span>
+                <span v-if="message.user_alias" class="log-card__alias">
+                  {{ message.user_alias }}
                 </span>
+                <span class="log-card__time">{{ message.formatted_time }}</span>
+              </div>
+              <div class="log-card__content">
+                <p class="log-card__message">{{ message.message }}</p>
+              </div>
+            </div>
+            <div class="log-card__right">
+              <div class="log-card__stats">
+                <div class="stat-item">
+                  <span class="stat-icon">👥</span>
+                  <span class="stat-value">{{ getPlayerCount(message.players) }}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">TPS</span>
+                  <span class="stat-value" :class="getTpsClass(message.tps)">
+                    {{ message.tps ? message.tps.toFixed(1) : '--' }}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -44,7 +59,7 @@
     <teleport to="body">
       <transition name="tooltip">
         <div
-          v-show="showTooltip && hoveredLog >= 0"
+          v-show="showTooltip && hoveredMessage"
           class="log-card__tooltip"
           :style="{ 
             left: tooltipPosition.x + 'px', 
@@ -53,18 +68,18 @@
           @mouseenter="handleTooltipMouseEnter"
           @mouseleave="handleTooltipMouseLeave"
         >
-          <slot name="tooltip" :message="parsedMessages[hoveredLog]" :index="hoveredLog">
+          <slot name="tooltip" :message="hoveredMessage" :index="hoveredLog">
             <!-- 新的三区块布局 -->
             <div class="tooltip-content">
 
               <div class="tooltip-header">
                 <div class="tooltip-header-left">
-                  <strong>{{ parsedMessages[hoveredLog]?.username }}</strong>
-                  <span v-if="parsedMessages[hoveredLog]?.user_alias" class="header-alias">
-                    {{ parsedMessages[hoveredLog]?.user_alias }}
+                  <strong>{{ hoveredMessage?.username }}</strong>
+                  <span v-if="hoveredMessage?.user_alias" class="header-alias">
+                    {{ hoveredMessage?.user_alias }}
                   </span>
                 </div>
-                <span class="tooltip-time">{{ parsedMessages[hoveredLog]?.formatted_time }}</span>
+                <span class="tooltip-time">{{ hoveredMessage?.formatted_time }}</span>
               </div>
               
               <div class="tooltip-sections">
@@ -115,26 +130,26 @@
                     <div class="tps-info">
                       <div class="tps-item">
                         <span class="tps-label">当前TPS:</span>
-                        <span class="tps-value" :class="getTpsClass(parsedMessages[hoveredLog]?.tps)">
-                          {{ parsedMessages[hoveredLog]?.tps?.toFixed(1) }}
+                        <span class="tps-value" :class="getTpsClass(hoveredMessage?.tps)">
+                          {{ hoveredMessage?.tps?.toFixed(1) }}
                         </span>
                       </div>
                       <div class="tps-item">
                         <span class="tps-label">1分钟:</span>
-                        <span class="tps-value" :class="getTpsClass(parsedMessages[hoveredLog]?.tps_1)">
-                          {{ parsedMessages[hoveredLog]?.tps_1?.toFixed(1) }}
+                        <span class="tps-value" :class="getTpsClass(hoveredMessage?.tps_1)">
+                          {{ hoveredMessage?.tps_1?.toFixed(1) }}
                         </span>
                       </div>
                       <div class="tps-item">
                         <span class="tps-label">5分钟:</span>
-                        <span class="tps-value" :class="getTpsClass(parsedMessages[hoveredLog]?.tps_5)">
-                          {{ parsedMessages[hoveredLog]?.tps_5?.toFixed(1) }}
+                        <span class="tps-value" :class="getTpsClass(hoveredMessage?.tps_5)">
+                          {{ hoveredMessage?.tps_5?.toFixed(1) }}
                         </span>
                       </div>
                       <div class="tps-item">
                         <span class="tps-label">15分钟:</span>
-                        <span class="tps-value" :class="getTpsClass(parsedMessages[hoveredLog]?.tps_15)">
-                          {{ parsedMessages[hoveredLog]?.tps_15?.toFixed(1) }}
+                        <span class="tps-value" :class="getTpsClass(hoveredMessage?.tps_15)">
+                          {{ hoveredMessage?.tps_15?.toFixed(1) }}
                         </span>
                       </div>
                     </div>
@@ -150,7 +165,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 
 // 聊天记录数据
 const messages = ref([
@@ -168,8 +183,17 @@ const messages = ref([
   }
 ])
 
+// 虚拟滚动相关
+const scrollContainer = ref(null)
+const scrollTop = ref(0)
+const containerHeight = ref(600)
+const itemHeight = ref(100) // 每个卡片的平均高度，可以动态调整
+const bufferSize = ref(5) // 上下缓冲区域显示的额外卡片数量
+const itemGap = 12 // 卡片之间的间距
+
 // 悬浮状态
 const hoveredLog = ref(-1)
+const hoveredMessage = ref(null) // 保存当前悬浮的消息对象
 const showTooltip = ref(false)
 const tooltipPosition = ref({ x: 0, y: 0 })
 const isMouseOverTooltip = ref(false) // 跟踪鼠标是否在提示框上
@@ -177,7 +201,8 @@ let hideTooltipTimer = null // 隐藏提示框的定时器
 
 // 时间格式化函数
 const formatTime = (timestamp) => {
-  const date = new Date(timestamp)
+  // 不做额外偏移，直接用时间戳
+  const date = new Date(timestamp - 16 * 60 * 60 * 1000)
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
@@ -189,7 +214,8 @@ const formatTime = (timestamp) => {
 
 // 解析聊天记录格式
 const parsedMessages = computed(() => {
-  return messages.value.map(message => {
+  // 最新在上，最旧在下
+  return messages.value.slice().sort((a, b) => b.send_time - a.send_time).map(message => {
     // API数据格式
     if (typeof message === 'object' && message.username) {
       return {
@@ -224,12 +250,93 @@ const parsedMessages = computed(() => {
   })
 })
 
+// 虚拟滚动计算
+const totalHeight = computed(() => {
+  const count = parsedMessages.value.length
+  if (count === 0) return 0
+  return count * itemHeight.value + (count - 1) * itemGap
+})
+
+const startIndex = computed(() => {
+  if (parsedMessages.value.length === 0) return 0
+  const index = Math.floor(scrollTop.value / (itemHeight.value + itemGap))
+  return Math.max(0, index - bufferSize.value)
+})
+
+const endIndex = computed(() => {
+  if (parsedMessages.value.length === 0) return 0
+  const visibleCount = Math.ceil(containerHeight.value / (itemHeight.value + itemGap))
+  const index = startIndex.value + visibleCount + bufferSize.value * 2
+  return Math.min(parsedMessages.value.length, index)
+})
+
+// 计算上下 padding 以维持总高度
+const paddingTop = computed(() => {
+  return startIndex.value * (itemHeight.value + itemGap)
+})
+
+const paddingBottom = computed(() => {
+  const renderedHeight = (endIndex.value - startIndex.value) * (itemHeight.value + itemGap)
+  const bottomPadding = totalHeight.value - paddingTop.value - renderedHeight
+  return Math.max(0, bottomPadding)
+})
+
+const visibleMessages = computed(() => {
+  const result = []
+  for (let i = startIndex.value; i < endIndex.value; i++) {
+    if (parsedMessages.value[i]) {
+      result.push({
+        ...parsedMessages.value[i],
+        actualIndex: i
+      })
+    }
+  }
+  return result
+})
+
+// 滚动处理 - 添加防抖以减少抖动
+let scrollTimer = null
+const handleScroll = (event) => {
+  const newScrollTop = event.target.scrollTop
+  
+  // 立即更新 scrollTop，不使用防抖
+  scrollTop.value = newScrollTop
+  
+  // 可选：如果还有抖动，可以使用 requestAnimationFrame
+  // if (scrollTimer) {
+  //   cancelAnimationFrame(scrollTimer)
+  // }
+  // scrollTimer = requestAnimationFrame(() => {
+  //   scrollTop.value = newScrollTop
+  // })
+}
+
+// 更新容器高度
+const updateContainerHeight = () => {
+  if (scrollContainer.value) {
+    containerHeight.value = scrollContainer.value.clientHeight
+  }
+}
+
+// 组件挂载时初始化
+onMounted(() => {
+  updateContainerHeight()
+  window.addEventListener('resize', updateContainerHeight)
+})
+
+// 组件卸载时清理
+onUnmounted(() => {
+  window.removeEventListener('resize', updateContainerHeight)
+})
+
 // 处理悬浮消息的属性列表
 const hoveredMessageAttributes = computed(() => {
-  if (hoveredLog.value < 0 || !parsedMessages.value[hoveredLog.value]?.attribute) {
+  if (!hoveredMessage.value?.attribute) {
     return []
   }
-  return parsedMessages.value[hoveredLog.value].attribute
+  // 确保是字符串类型
+  const attrStr = String(hoveredMessage.value.attribute)
+  return attrStr
     .split('|')
     .filter(item => item && item.trim())
     .map(item => item.trim())
@@ -237,10 +344,12 @@ const hoveredMessageAttributes = computed(() => {
 
 // 处理悬浮消息的玩家列表
 const hoveredMessagePlayers = computed(() => {
-  if (hoveredLog.value < 0 || !parsedMessages.value[hoveredLog.value]?.players) {
+  if (!hoveredMessage.value?.players) {
     return []
   }
-  return parsedMessages.value[hoveredLog.value].players
+  // 确保是字符串类型
+  const playersStr = String(hoveredMessage.value.players)
+  return playersStr
     .split('|')
     .filter(item => item && item.trim())
     .map(item => item.trim())
@@ -257,8 +366,11 @@ const getTpsClass = (tps) => {
 
 // 计算玩家数量
 const getPlayerCount = (playersString) => {
-  if (!playersString || playersString.trim() === '') return 0
-  return playersString.split('|').filter(player => player && player.trim()).length
+  if (!playersString) return 0
+  // 确保是字符串类型
+  const playersStr = String(playersString)
+  if (playersStr.trim() === '') return 0
+  return playersStr.split('|').filter(player => player && player.trim()).length
 }
 
 // 鼠标悬浮处理函数
@@ -270,6 +382,7 @@ const handleMessageHover = (message, index, event) => {
   }
   
   hoveredLog.value = index
+  hoveredMessage.value = message // 保存当前悬浮的消息对象
   showTooltip.value = true
   
   // 使用 nextTick 确保 DOM 更新后再计算位置
@@ -301,8 +414,10 @@ const handleMessageHover = (message, index, event) => {
     
     // 安全边距
     const margin = 15
-    // 鼠标偏移量
-    const mouseOffset = 10
+    // 鼠标偏移量：默认情况下离鼠标的距离
+    const mouseOffset = 12
+    // 上方显示时的重叠：让鼠标可以轻松进入悬浮窗底部
+    const verticalOverlap = 15  // 悬浮窗底部覆盖鼠标位置15px
     
     // 默认位置：鼠标右下方
     let x = mouseX + mouseOffset
@@ -313,9 +428,20 @@ const handleMessageHover = (message, index, event) => {
       x = mouseX - tooltipWidth - mouseOffset
     }
     
-    // 检查下边界，如果超出则放在鼠标上方
+    // 检查下边界 - 改进策略
     if (y + tooltipHeight > viewport.height - margin) {
-      y = mouseY - tooltipHeight - mouseOffset
+      // 首先尝试在卡片底部对齐显示（而不是基于鼠标位置）
+      const cardBottomY = rect.bottom - tooltipHeight
+      
+      // 如果卡片底部对齐后，悬浮窗顶部还在可视范围内，就使用这个位置
+      if (cardBottomY >= margin) {
+        y = cardBottomY
+      } else {
+        // 否则，悬浮窗底部覆盖鼠标，让鼠标可以直接进入悬浮窗
+        y = mouseY - tooltipHeight + verticalOverlap
+        // 确保不会超出顶部
+        y = Math.max(margin, y)
+      }
     }
     
     // 如果左上角都不够空间，智能调整到最佳位置
@@ -388,7 +514,8 @@ const updateTooltipPosition = (event) => {
     tooltipHeight = 320
   }
   const margin = 15
-  const mouseOffset = 10
+  const mouseOffset = 12
+  const verticalOverlap = 15  // 悬浮窗底部覆盖鼠标位置15px
   
   // 默认位置：鼠标右下方
   let x = mouseX + mouseOffset
@@ -400,7 +527,15 @@ const updateTooltipPosition = (event) => {
   }
   
   if (y + tooltipHeight > viewport.height - margin) {
-    y = mouseY - tooltipHeight - mouseOffset
+    // 首先尝试在卡片底部对齐显示
+    const cardBottomY = rect.bottom - tooltipHeight
+    
+    if (cardBottomY >= margin) {
+      y = cardBottomY
+    } else {
+      y = mouseY - tooltipHeight + verticalOverlap
+      y = Math.max(margin, y)
+    }
   }
   
   // 智能回退策略
@@ -445,6 +580,7 @@ const handleTooltipMouseLeave = () => {
   hideTooltipTimer = setTimeout(() => {
     if (!isMouseOverTooltip.value) {
       hoveredLog.value = -1
+      hoveredMessage.value = null
       showTooltip.value = false
     }
     hideTooltipTimer = null
@@ -462,6 +598,7 @@ const handleMessageLeave = (message, index, event) => {
   hideTooltipTimer = setTimeout(() => {
     if (!isMouseOverTooltip.value) {
       hoveredLog.value = -1
+      hoveredMessage.value = null
       showTooltip.value = false
     }
     hideTooltipTimer = null
@@ -585,14 +722,43 @@ defineExpose({
 
 
 .log-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
   padding: 16px;
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   box-sizing: border-box;
+  position: relative;
+}
+
+/* 虚拟滚动列表容器 */
+.log-cards-list {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+  will-change: padding-top, padding-bottom;
+  /* 使用 GPU 加速来减少抖动 */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* 自定义滚动条样式 */
+.log-cards::-webkit-scrollbar {
+  width: 8px;
+}
+
+.log-cards::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.log-cards::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.log-cards::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
 }
 
 /* 聊天记录卡片样式 */
@@ -613,6 +779,8 @@ defineExpose({
     inset 0 2px 0 rgba(255, 255, 255, 0.08),
     inset 0 0 20px rgba(255, 255, 255, 0.02);
   overflow: hidden;
+  flex-shrink: 0;
+  min-height: 80px;
 }
 
 .log-card::before {
@@ -954,11 +1122,22 @@ defineExpose({
   max-width: 350px;
   width: 350px;
   max-height: 250px;
-  overflow-y: auto;
+  overflow: visible;
   pointer-events: auto;
   transform-origin: center;
   box-sizing: border-box;
   transition: left 0.1s ease-out, top 0.1s ease-out;
+}
+
+/* 在悬浮窗底部添加一个透明扩展区域，方便鼠标进入 */
+.log-card__tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 0;
+  right: 0;
+  height: 10px;
+  pointer-events: auto;
 }
 
 /* 高分辨率屏幕提示框尺寸优化 */
@@ -966,7 +1145,7 @@ defineExpose({
   .log-card__tooltip {
     max-width: 400px;
     width: 400px;
-    max-height: 280px;
+    max-height: 270px;
   }
 }
 
@@ -974,13 +1153,17 @@ defineExpose({
   .log-card__tooltip {
     max-width: 450px;
     width: 450px;
-    max-height: 320px;
+    max-height: 270px;
     border-radius: 16px;
   }
 }
 
 .tooltip-content {
   padding: 12px 14px;
+  max-height: 270px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .tooltip-header {
@@ -1067,11 +1250,17 @@ defineExpose({
   display: flex;
   gap: 0;
   margin-top: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .tooltip-section {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .section-title {
@@ -1082,12 +1271,34 @@ defineExpose({
   text-align: center;
   border-bottom: 1px solid var(--alias-border);
   padding-bottom: 3px;
+  flex-shrink: 0;
 }
 
 .section-content {
   font-size: 11px;
-  max-height: 120px;
+  flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 120px;
+}
+
+/* 三个区块的自定义滚动条 */
+.section-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.section-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 2px;
+}
+
+.section-content::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.3);
+  border-radius: 2px;
+}
+
+.section-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 128, 128, 0.5);
 }
 
 .section-divider {
@@ -1097,6 +1308,7 @@ defineExpose({
     rgba(128, 128, 128, 0.5) 50%,
     rgba(128, 128, 128, 0.2) 100%);
   margin: 0 8px;
+  flex-shrink: 0;
 }
 
 /* 属性区块 */
@@ -1121,8 +1333,25 @@ defineExpose({
   display: flex;
   flex-direction: column;
   gap: 1px;
-  max-height: 100px;
-  overflow-y: auto;
+}
+
+/* 玩家列表滚动条样式（与属性区块一致） */
+.players-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.players-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 2px;
+}
+
+.players-list::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.3);
+  border-radius: 2px;
+}
+
+.players-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 128, 128, 0.5);
 }
 
 .player-item {
@@ -1154,6 +1383,9 @@ defineExpose({
 .tps-label {
   font-size: 9px;
   color: var(--text-secondary);
+}
+.tps-info::-webkit-scrollbar {
+  display: none;
 }
 
 .tps-value {

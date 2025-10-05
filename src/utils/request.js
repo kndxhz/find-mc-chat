@@ -1,5 +1,6 @@
 import axios from 'axios'
-import { ElMessage } from 'element-plus' // 按需选用 UI 库提示
+import { ElMessage } from 'element-plus'
+import 'element-plus/dist/index.css'
 
 // 创建实例
 const service = axios.create({

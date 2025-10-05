@@ -1,10 +1,6 @@
 <script setup lang="ts">
-  import { ref } from 'vue'
-  import { ElAutocomplete, ElInput, ElButton, ElDatePicker } from 'element-plus'
-  import 'element-plus/es/components/autocomplete/style/css'
-  import 'element-plus/es/components/input/style/css'
-  import 'element-plus/es/components/date-picker/style/css'
-  import 'element-plus/es/components/button/style/css'
+  import { ref, onMounted, watch } from 'vue'
+  import { ElAutocomplete, ElInput, ElButton, ElDatePicker, ElSelect, ElOption } from 'element-plus'
   import Log from './log.vue'
   import {get_id, get_data} from '../api/chat.js'
   
@@ -65,6 +61,15 @@
   }
 
   const filterInput = ref('')
+  const messageType = ref('') // 消息类型选择器
+  
+  // 监听state变化，当为空时清空messageType(仅针对非系统消息)
+  watch(state, (newValue) => {
+    if (!newValue && messageType.value !== '系统消息') {
+      messageType.value = ''
+    }
+  })
+  
   const shortcuts = [
     {
       text:'最近一分钟',
@@ -237,17 +242,31 @@
       
       // 构建查询参数
       const params: Record<string, string> = {
-        id: state.value || '',
-        filter: filterInput.value || '',
+        id: '',
+        filter: '',
         start_date: '',
         end_date: ''
+      }
+      
+      // 根据消息类型设置查询参数
+      if (messageType.value === '系统消息') {
+        // 系统消息: id设为"系统", filter设为玩家ID(可以为空)
+        params.id = '系统'
+        params.filter = state.value || ''
+      } else {
+        // 其他情况: 正常设置
+        params.id = state.value || ''
+        params.filter = filterInput.value || ''
       }
       
       // 处理时间范围
       if (filterdate.value && filterdate.value.length === 2) {
         // 转换为秒级时间戳
-        params.start_date = Math.floor(filterdate.value[0].getTime() / 1000).toString()
-        params.end_date = Math.floor(filterdate.value[1].getTime() / 1000).toString()
+        // 后端数据时间慢了16小时,说明后端存储的时间需要加16小时才是实际时间
+        // 所以查询时需要减去16小时的偏移
+        
+        params.start_date = (Math.floor(filterdate.value[0].getTime() / 1000) ).toString()
+        params.end_date = (Math.floor(filterdate.value[1].getTime() / 1000) ).toString()
       }
       
       console.log('查询参数:', params)
@@ -257,10 +276,52 @@
       console.log('查询结果:', response)
       
       if (response.status === 'ok' && Array.isArray(response.chats)) {
+        let filteredChats = response.chats
+        
+        // 根据消息类型进行前端过滤
+        if (messageType.value && messageType.value !== '系统消息') {
+          if (messageType.value === '普通消息') {
+            // 筛选没有属性的消息
+            if (state.value) {
+              // 有ID: 筛选该玩家的普通消息
+              filteredChats = filteredChats.filter(chat => 
+                !chat.attribute && 
+                (chat.username === state.value || chat.user_alias === state.value)
+              )
+            } else {
+              // 无ID: 筛选所有普通消息
+              filteredChats = filteredChats.filter(chat => !chat.attribute)
+            }
+          } else if (messageType.value === '展示消息') {
+            // 筛选有属性的消息
+            if (state.value) {
+              // 有ID: 筛选该玩家的展示消息
+              filteredChats = filteredChats.filter(chat => 
+                chat.attribute && 
+                (chat.username === state.value || chat.user_alias === state.value)
+              )
+            } else {
+              // 无ID: 筛选所有展示消息
+              filteredChats = filteredChats.filter(chat => chat.attribute)
+            }
+          }
+        } else if (state.value && !messageType.value) {
+          // 有ID但无消息类型: 显示该玩家的所有消息(普通+系统+展示)
+          filteredChats = filteredChats.filter(chat => 
+            // 普通消息: 没有属性的该玩家消息
+            (!chat.attribute && (chat.username === state.value || chat.user_alias === state.value)) ||
+            // 系统消息: 系统发送且内容包含ID
+            (chat.username === '系统' && chat.message.includes(state.value)) ||
+            // 展示消息: 有属性的该玩家消息
+            (chat.attribute && (chat.username === state.value || chat.user_alias === state.value))
+          )
+        }
+        // 如果既无ID又无消息类型，或者是系统消息，则不过滤(显示所有查询结果)
+        
         // 更新log组件的数据
         if (logRef.value && logRef.value.setMessages) {
-          logRef.value.setMessages(response.chats)
-          console.log(`成功加载 ${response.chats.length} 条聊天记录`)
+          logRef.value.setMessages(filteredChats)
+          console.log(`成功加载 ${filteredChats.length} 条聊天记录`)
         } else {
           console.error('Log组件引用未就绪或方法不存在')
         }
@@ -273,53 +334,87 @@
       isLoading.value = false
     }
   }
-  // 页面加载完成后自动执行查询
-  import { onMounted } from 'vue'
-
   onMounted(() => {
     on_query()
   })
+  const options = [
+  {
+    value: '普通消息',
+    label: '普通消息',
+  },
+  {
+    value: '系统消息',
+    label: '系统消息',
+  },
+  {
+    value: '展示消息',
+    label: '展示消息',
+  }
+]
 </script>
 <template>
-  <div class="filter">
-    <el-autocomplete
-      class="ID-input"
-      v-model="state"
-      :fetch-suggestions="querySearch"
-      :trigger-on-focus="false"
-      placeholder="请输入ID（空则全部查询）"
-      @select="handleSelect"
-      clearable
-    />
-    <el-input
-      class="filter-input"
-      v-model="filterInput"
-      placeholder="筛选内容(支持正则，空则全部查询)"
-      clearable
-    />
-    <el-date-picker
-      class="filter-date"
-      v-model="filterdate"
-      type="datetimerange"
-      start-placeholder="开始日期（空则全部查询）"
-      end-placeholder="结束日期（空则全部查询）"
-      :default-time="defaultTime1"
-      :shortcuts="shortcuts"
-    />
-    <el-button
-      class="query-button"
-      @click="on_query"
-      :loading="isLoading"
-      type="primary">查询</el-button>
-
-  </div>
-  <div class="log-container">
-    <Log ref="logRef" />
+  <div class="page-container">
+    <div class="filter">
+      <el-autocomplete
+        class="ID-input"
+        v-model="state"
+        :fetch-suggestions="querySearch"
+        :trigger-on-focus="false"
+        placeholder="请输入ID（空则全部查询）"
+        @select="handleSelect"
+        clearable
+      />
+      <el-select
+        class="message-type-select"
+        v-model="messageType"
+        placeholder="消息类型"
+        clearable
+      >
+        <el-option
+          v-for="item in options"
+          :key="item.value"
+          :label="item.label"
+          :value="item.value"
+        />
+      </el-select>
+      <el-input
+        class="filter-input"
+        v-model="filterInput"
+        placeholder="筛选内容(支持正则，空则全部查询)"
+        clearable
+      />
+      <el-date-picker
+        class="filter-date"
+        v-model="filterdate"
+        type="datetimerange"
+        start-placeholder="开始日期（空则全部查询）"
+        end-placeholder="结束日期（空则全部查询）"
+        :default-time="defaultTime1"
+        :shortcuts="shortcuts"
+      />
+      <el-button
+        class="query-button"
+        @click="on_query"
+        :loading="isLoading"
+        type="primary">查询</el-button>
+    </div>
+    
+    <div class="log-wrapper">
+      <Log ref="logRef" />
+    </div>
   </div>
 </template>
 
 <style lang="css">
+.page-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .filter {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -332,23 +427,28 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   margin-bottom: 16px;
 }
+
 .ID-input,
 .filter-input {
   flex: 1 1 200px;
   min-width: 180px;
   max-width: 100%;
 }
+
+.message-type-select {
+  flex: 0 0 auto;
+  width: 110px;
+}
+
 .filter-date {
   flex: 2 1 300px;
   min-width: 220px;
   max-width: 100%;
 }
-.log-container {
+
+.log-wrapper {
   flex: 1;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
   min-height: 0;
+  overflow: hidden;
 }
 </style>

@@ -2,7 +2,7 @@
 import { ElMessageBox, ElConfigProvider } from 'element-plus';
 import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import Main from './components/filter.vue';
-import 'element-plus/es/components/message-box/style/css';
+import 'element-plus/dist/index.css';
 
 // 创建一个简单的 cookie 工具
 const cookieStore = {
