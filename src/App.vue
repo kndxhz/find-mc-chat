@@ -22,7 +22,7 @@ const cookieStore = {
   const seenMessageBox = await cookieStore.get('seenMessageBox');
   if (seenMessageBox?.value !== 'true') {
     ElMessageBox.alert(
-      "本站确保任何聊天记录不会被篡改、删除<br/>始终保持中立<br/>本站已在GitHub开源<br/>https://github.com/kndxhz/find-mc-chat<br/>如有任何问题，请前往GitHub提交issue",
+      "本站确保任何聊天记录不会被篡改、删除<br/>始终保持中立<br/>本站已在GitHub开源<br/>https://github.com/kndxhz/find-mc-chat<br/>https://github.com/kndxhz/ranmc-chat<br/>如有任何问题，请前往GitHub提交issue",
       "温馨提示",
       { 
         confirmButtonText: "我已知晓并不再显示",
